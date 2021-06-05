@@ -49,13 +49,11 @@ namespace ClientMJPEG
                         var currentPackageSize = packageSize;
 
                         var partImageBuffer = new Memory<byte>(new byte[2 * packageSize]);
-                        var flushBuffer = new Memory<byte>(new byte[packageSize]);
                         var partImageBufferSize = 0;
 
                         var readBuffer = new Memory<byte>(new byte[packageSize]);
 
                         var readTask = stream.ReadAsync(readBuffer);
-                        var switchBuffer = 0;
                         while (stream.CanRead && !_stop)
                         {
                             var size = await readTask;
@@ -68,46 +66,20 @@ namespace ClientMJPEG
                                 partImageBuffer = newBuffer;
                             }
 
-                            Memory<byte> memory;
-                            if (switchBuffer == 0)
-                            {
-                                FillPartImageBuffer(readBuffer, partImageBuffer, partImageBufferSize);
-                                partImageBufferSize = partImageBufferSize + size;
-                                memory = partImageBuffer;
+                            FillPartImageBuffer(readBuffer, partImageBuffer, partImageBufferSize);
+                            partImageBufferSize = partImageBufferSize + size;
 
-                                ReseiseBuffers();
+                            if (packageSize > currentPackageSize)
+                                readBuffer = new Memory<byte>(new byte[packageSize]);
 
-                                readTask = stream.ReadAsync(flushBuffer);
-                                switchBuffer = 1;
-                            }
-                            else
-                            {
-                                FillPartImageBuffer(flushBuffer, partImageBuffer, partImageBufferSize);
-                                partImageBufferSize = partImageBufferSize + size;
-                                memory = partImageBuffer;
-
-                                ReseiseBuffers();
-
-                                readTask = stream.ReadAsync(readBuffer);
-                                switchBuffer = 0;
-                            }
-
-                            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                            void ReseiseBuffers()
-                            {
-                                if (packageSize > currentPackageSize)
-                                {
-                                    readBuffer = new Memory<byte>(new byte[packageSize]);
-                                    flushBuffer = new Memory<byte>(new byte[packageSize]);
-                                }
-                            }
+                            readTask = stream.ReadAsync(readBuffer);
 
                             currentPackageSize = packageSize;
                             var processOffset = 0;
                             var process = true;
                             while (process)
                             {
-                                var prcessSlice = memory.Slice(processOffset, partImageBufferSize - processOffset);
+                                var prcessSlice = partImageBuffer.Slice(processOffset, partImageBufferSize - processOffset);
                                 var indexContentLengthStart = prcessSlice.FindBytesIndex(prcessSlice.Length, _contentLengthBytes);
                                 if (indexContentLengthStart == -1)
                                 {
