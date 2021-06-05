@@ -1,12 +1,66 @@
 ﻿<Window x:Class="CameraViewer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CameraViewer"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="Camera Viewer"
+        Height="450"
+        Width="800"
+        x:Name="RootWindow"
+        >
     <Grid>
-
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel
+            Grid.Row="0"
+            Orientation="Horizontal"
+            HorizontalAlignment="Center"
+            >
+            <TextBlock Text="Host"/>
+            <TextBox
+                Width="150"
+                Margin="5,0,5,0"
+                Text="{Binding NewCameraHost, ValidatesOnDataErrors=True}"
+                />
+            <TextBlock Text="Port"/>
+            <TextBox
+                Width="70"
+                Margin="5,0,0,0"
+                Text="{Binding NewCameraPort, ValidatesOnDataErrors=True}"
+                />
+            <Button
+                Margin="5,0,20,0"
+                Content="Add Camera"
+                Command="{Binding AddCameraCommand}"
+                />
+            <Button 
+                Content="Open a camera in a new window"
+                Command="{Binding OpenCameraWindowCommand}"
+                />
+        </StackPanel>
+        <ListView
+            Grid.Row="1"
+            ItemsSource="{Binding Cameras}"
+            ScrollViewer.VerticalScrollBarVisibility="Visible"
+            ScrollViewer.CanContentScroll="False"
+            VirtualizingPanel.ScrollUnit="Pixel"
+            VirtualizingPanel.IsVirtualizing="True"
+            >
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                        <Button 
+                            Content="CloseCamera"
+                            Command="{Binding  .DataContext.CloseCameraCommand, ElementName=RootWindow}"
+                            CommandParameter="{Binding .}"
+                            />
+                        <Image Source="{Binding CameraImage}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
     </Grid>
 </Window>
