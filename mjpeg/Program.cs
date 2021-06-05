@@ -21,23 +21,41 @@ namespace mjpeg
 
                 while (s.CanRead)
                 {
+                    var partImageCache = new Memory<byte>(new byte[50000]);
+                    var partImageSize = 0;
+
                     var readCache = new Memory<byte>(new byte[50000]);
                     var size = await s.ReadAsync(readCache);
 
                     var contentLengthBytes = Encoding.UTF8.GetBytes("\nContent-Length: ");
-                    var emptyBytes = Encoding.UTF8.GetBytes("\n");
+                    var newLineBytes = Encoding.UTF8.GetBytes("\n");
+                    var carriageReturnSize = Encoding.UTF8.GetBytes("\r").Length;
 
                     var indexContentLengthStart = FindBytesIndex(readCache, size, contentLengthBytes);
                     var indexContentLengthEnd = indexContentLengthStart + contentLengthBytes.Length;
 
-                    var indexEndLength = FindBytesIndex(readCache.Slice(indexContentLengthEnd), size, emptyBytes);
-                    indexEndLength = indexEndLength + indexContentLengthEnd;
+                    var indexEndLength = FindBytesIndex(readCache.Slice(indexContentLengthEnd), size, newLineBytes);
+                    indexEndLength += indexContentLengthEnd;
 
-                    var str = Encoding.UTF8.GetString(readCache.Span.Slice(indexContentLengthEnd, indexEndLength - (indexContentLengthEnd + 1)));
-                    Console.WriteLine(str);
+                    var lengthStr = Encoding.UTF8.GetString(readCache.Span.Slice(indexContentLengthEnd, indexEndLength - (indexContentLengthEnd + 1)));
+                    var imageSize = int.Parse(lengthStr);
 
-                    var f = File.CreateText(@"E:\work\mjpeg task\mjpeg\gh.txt");
-                    f.Write(Encoding.ASCII.GetString(readCache.Span.Slice(indexContentLengthStart)));
+                    var f = File.CreateText(@"E:\work\mjpeg task\mjpeg\full.txt");
+                    f.Write(Encoding.ASCII.GetString(readCache.Span.Slice(indexContentLengthEnd)));
+                    f.Dispose();
+
+                    var imageStartIndex = indexEndLength + (newLineBytes.Length * 2 + carriageReturnSize);
+
+                    var f2 = File.CreateText(@"E:\work\mjpeg task\mjpeg\firstImage.txt");
+                    f2.Write(Encoding.ASCII.GetString(readCache.Span.Slice(imageStartIndex, imageSize)));
+                    f2.Dispose();
+
+                    using (var ms = new MemoryStream())
+                    {
+                        ms.Write(readCache.Span.Slice(imageStartIndex, imageSize));
+                        var image = System.Drawing.Image.FromStream(ms);
+                        image.Save(@"E:\work\mjpeg task\mjpeg\image.jpg");
+                    }
 
                     return;
                 }
@@ -58,6 +76,9 @@ namespace mjpeg
             var index = -1;
             for (int i = 0; i < size; i++)
             {
+                if (size - i < pattern.Length)
+                    return index;
+
                 var temp = source.Slice(i, pattern.Length);
                 for (int j = 0; j < pattern.Length; j++)
                 {
