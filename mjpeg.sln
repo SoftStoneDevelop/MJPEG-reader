@@ -5,7 +5,9 @@ VisualStudioVersion = 16.0.31313.79
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CameraViewer", "CameraViewer\CameraViewer.csproj", "{4484FAA3-D9A6-4517-8BE3-224618D9DA2A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientMJPEG", "ClientMJPEG\ClientMJPEG.csproj", "{EA9C6D4A-0F16-4604-88D2-FE10CF78CC88}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClientMJPEG", "ClientMJPEG\ClientMJPEG.csproj", "{EA9C6D4A-0F16-4604-88D2-FE10CF78CC88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClientMJPEGTests", "ClientMJPEGTests\ClientMJPEGTests.csproj", "{8DB32726-16ED-40A9-BCD4-139D8DED00ED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{EA9C6D4A-0F16-4604-88D2-FE10CF78CC88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EA9C6D4A-0F16-4604-88D2-FE10CF78CC88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EA9C6D4A-0F16-4604-88D2-FE10CF78CC88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DB32726-16ED-40A9-BCD4-139D8DED00ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DB32726-16ED-40A9-BCD4-139D8DED00ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DB32726-16ED-40A9-BCD4-139D8DED00ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DB32726-16ED-40A9-BCD4-139D8DED00ED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
