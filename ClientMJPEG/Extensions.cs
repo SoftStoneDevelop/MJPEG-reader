@@ -10,14 +10,14 @@ namespace ClientMJPEG
         /// <returns>-1 if not find in source</returns>
         public static int FindBytesIndex(
             this Memory<byte> source,
-            int size,
             Memory<byte> pattern
         )
         {
             var index = -1;
-            for (int i = 0; i < size; i++)
+
+            for (int i = 0; i < source.Length; i++)
             {
-                if (size - i < pattern.Length)
+                if (source.Length - i < pattern.Length)
                     return index;
 
                 var temp = source.Slice(i, pattern.Length);

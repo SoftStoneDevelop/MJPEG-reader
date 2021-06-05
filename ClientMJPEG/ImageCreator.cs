@@ -80,7 +80,7 @@ namespace ClientMJPEG
                             while (process)
                             {
                                 var prcessSlice = partImageBuffer.Slice(processOffset, partImageBufferSize - processOffset);
-                                var indexContentLengthStart = prcessSlice.FindBytesIndex(prcessSlice.Length, _contentLengthBytes);
+                                var indexContentLengthStart = prcessSlice.FindBytesIndex(_contentLengthBytes);
                                 if (indexContentLengthStart == -1)
                                 {
                                     //write part and process next package from stream
@@ -98,7 +98,7 @@ namespace ClientMJPEG
                                     continue;
                                 }
 
-                                var indexEndLength = prcessSlice.Slice(indexContentLengthEnd).FindBytesIndex(prcessSlice.Length, _newLineBytes);
+                                var indexEndLength = prcessSlice.Slice(indexContentLengthEnd).FindBytesIndex(_newLineBytes);
                                 if (indexEndLength == -1)
                                 {
                                     //write part and process next package from stream
