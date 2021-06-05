@@ -21,6 +21,7 @@ namespace CameraViewer
         private void ConfigureContainer(IUnityContainer container)
         {
             container.RegisterType<IImageCreatorFactory, ImageCreatorFactory>();
+            container.RegisterType<IWindowCreatorService, WindowCreatorService>();
 
             container.RegisterType<MainWindowVM>();
             container.RegisterType<MainWindow>();

@@ -5,7 +5,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 using CameraViewer.Factories;
 
 namespace CameraViewer.ViewModel
@@ -13,10 +15,15 @@ namespace CameraViewer.ViewModel
     public class MainWindowVM : BaseVM, IDataErrorInfo
     {
         private readonly IImageCreatorFactory _imageCreatorFactory;
+        private readonly IWindowCreatorService _windowCreatorService;
 
-        public MainWindowVM(IImageCreatorFactory imageCreatorFactory)
+        public MainWindowVM(
+            IImageCreatorFactory imageCreatorFactory,
+            IWindowCreatorService windowCreatorService
+            )
         {
             _imageCreatorFactory = imageCreatorFactory ?? throw new ArgumentNullException(nameof(imageCreatorFactory));
+            _windowCreatorService = windowCreatorService ?? throw new ArgumentNullException(nameof(windowCreatorService));
 
             Cameras = new ObservableCollection<CameraItemVM>();
 
@@ -32,7 +39,35 @@ namespace CameraViewer.ViewModel
             OpenCameraWindowCommand = new DelegateCommand(
                     () =>
                     {
-                        //TODO
+                        var ipAdress = _cameraHost;
+                        var port = _cameraPort;
+                        var thread = new Thread(() =>
+                        {
+                            try
+                            {
+                                var window = _windowCreatorService.CreateCameraWindow(ipAdress, port);
+
+                                window.Closing
+                                    += (_, _) =>
+                                    {
+                                        ((IDisposable)window.DataContext)?.Dispose();
+                                    };
+
+                                window.Closed
+                                    += (_, _) =>
+                                    {
+                                        window.Dispatcher.BeginInvokeShutdown(DispatcherPriority.Normal);
+                                    };
+
+                                window.Show();
+
+                                Dispatcher.Run();
+                            }
+                            catch { }
+                        });
+
+                        thread.SetApartmentState(ApartmentState.STA);
+                        thread.Start();
                     },
                     () => CanAdd
                 )
