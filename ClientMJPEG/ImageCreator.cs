@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -16,6 +17,7 @@ namespace ClientMJPEG
         private Task _routine;
         private volatile bool _stop = false;
         private readonly Channel<byte[]> _channel = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleWriter = true, SingleReader = true });
+        ArrayPool<byte> _arrayPool = ArrayPool<byte>.Shared;
 
         private EndPoint _endPoint;
         private HttpClient _client;
@@ -45,7 +47,7 @@ namespace ClientMJPEG
                     {
                         _client.RequestGetOnStream("/mjpg/video.mjpg");
 
-                        var packageSize = 50000;
+                        var packageSize = 10000;
                         var currentPackageSize = packageSize;
 
                         var partImageBuffer = new Memory<byte>(new byte[2 * packageSize]);
@@ -137,7 +139,9 @@ namespace ClientMJPEG
                                 }
                                 else
                                 {
-                                    _channel.Writer.TryWrite(prcessSlice.Span.Slice(imageStartIndex, imageSize).ToArray());
+                                    var array = _arrayPool.Rent(imageStartIndex + imageSize);
+                                    prcessSlice.Span.Slice(imageStartIndex, imageSize).CopyTo(array);
+                                    _channel.Writer.TryWrite(array);
                                     processOffset += imageStartIndex + imageSize;
                                 }
                             }
@@ -148,6 +152,11 @@ namespace ClientMJPEG
             }, TaskCreationOptions.LongRunning);
 
             return true;
+        }
+
+        public void ReturnArray(byte[] array)
+        {
+            _arrayPool.Return(array);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

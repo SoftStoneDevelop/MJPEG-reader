@@ -36,7 +36,7 @@ namespace CameraViewer.ViewModel
                         if (_cancellationTokenSource.Token.IsCancellationRequested)
                             break;
 
-                        using var ms = new MemoryStream(imageData);
+                        var ms = new MemoryStream(imageData);
                         JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
                         var source = decoder.Frames[0];
 
@@ -67,6 +67,7 @@ namespace CameraViewer.ViewModel
                         }
 
                         source.CopyPixels(_rect, _pixels, _stride, 0);
+                        _imageCreator.ReturnArray(imageData);
 
                         Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)(() =>
                         {
