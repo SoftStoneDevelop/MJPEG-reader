@@ -1,7 +1,10 @@
-﻿using System.Windows;
+﻿using System;
+using System.Threading.Tasks;
+using System.Windows;
 using CameraViewer.Factories;
 using CameraViewer.ViewModel;
-using Unity;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace CameraViewer
 {
@@ -10,27 +13,40 @@ namespace CameraViewer
     /// </summary>
     public partial class App : Application
     {
-        private readonly IUnityContainer _container;
+        private readonly IHost _container;
 
         public App()
         {
-            _container = new UnityContainer();
-            ConfigureContainer(_container);
+            _container = ConfigureContainer();
+            _container.RunAsync();
         }
 
-        private void ConfigureContainer(IUnityContainer container)
+        private IHost ConfigureContainer()
         {
-            container.RegisterType<IImageCreatorFactory, ImageCreatorFactory>();
-            container.RegisterType<IWindowCreatorService, WindowCreatorService>();
+            var host = Host.CreateDefaultBuilder();
+            var container = host.ConfigureServices(services =>
+            {
+                services.AddSingleton<IImageCreatorFactory, ImageCreatorFactory>();
+                services.AddSingleton<IWindowCreatorService, WindowCreatorService>();
+                services.AddSingleton<MainWindowVM>();
+                services.AddSingleton<MainWindow>();
+            }
+            )
+            .Build();
 
-            container.RegisterType<MainWindowVM>();
-            container.RegisterType<MainWindow>();
+            return container;
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            var mainWindow = _container.Resolve<MainWindow>();
+            var mainWindow = _container.Services.GetService<MainWindow>();
             mainWindow.Show();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _container?.Dispose();
+            base.OnExit(e);
         }
     }
 }
