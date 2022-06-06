@@ -48,48 +48,46 @@ namespace CameraViewer.ViewModel
                             if (_cancellationTokenSource.Token.IsCancellationRequested)
                                 break;
 
+                            using var ms = new MemoryStream(imageData);
+                            JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
+                            var source = decoder.Frames[0];
+
                             if (_writableBitmap == null)
                             {
-                                var image = new BitmapImage();
-                                image.BeginInit();
-                                using var ms = new MemoryStream(imageData);
-                                image.StreamSource = ms;
-                                image.EndInit();
+                                _rect = new Int32Rect(0, 0, source.PixelWidth, source.PixelHeight);
+                                _stride = (source.PixelWidth * source.Format.BitsPerPixel + 7) / 8;
+                                _pixels = new byte[_rect.Height * _stride];
 
-                                _writableBitmap = new WriteableBitmap(
-                                    image.PixelWidth,
-                                    image.PixelHeight,
-                                    image.DpiX,
-                                    image.DpiY,
-                                    image.Format,
-                                    null
-                                    );
-
-                                if (_cameraImage == null)
+                                _dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)(() =>
                                 {
-                                    _dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)(() =>
+                                    _writableBitmap = new WriteableBitmap(
+                                        source.PixelWidth,
+                                        source.PixelHeight,
+                                        source.DpiX,
+                                        source.DpiY,
+                                        source.Format,
+                                        null
+                                        );
+
+                                    CameraImage = new Image
                                     {
-                                        CameraImage = new Image
-                                        {
-                                            Source = _writableBitmap,
-                                            HorizontalAlignment = HorizontalAlignment.Center,
-                                            VerticalAlignment = VerticalAlignment.Center,
-                                        };
-                                    }));
-                                }
+                                        Source = _writableBitmap,
+                                        HorizontalAlignment = HorizontalAlignment.Center,
+                                        VerticalAlignment = VerticalAlignment.Center,
+                                    };
+                                }));
                             }
 
-                            var rect = new Int32Rect(0, 0, _writableBitmap.PixelWidth, _writableBitmap.PixelHeight);
-                            var stride = (rect.Width * _writableBitmap.Format.BitsPerPixel + 7) / 8;
+                            source.CopyPixels(_rect, _pixels, _stride, 0);
 
-                            _writableBitmap.WritePixels(
-                                rect,
-                                imageData,
-                                stride,
+                            _dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)(() =>
+                            {
+                                _writableBitmap.WritePixels(
+                                _rect,
+                                _pixels,
+                                _stride,
                                 0);
-
-                            //TODO save to selected folder
-                            //image.Save(@$"E:\work\mjpeg task\mjpeg\image{DateTime.UtcNow}.jpg");
+                            }));
                         }
                     }
                     catch
@@ -108,6 +106,9 @@ namespace CameraViewer.ViewModel
         }
         private Image _cameraImage;
         private WriteableBitmap _writableBitmap;
+        private Int32Rect _rect;
+        private int _stride;
+        private byte[] _pixels;
 
         public void Dispose()
         {

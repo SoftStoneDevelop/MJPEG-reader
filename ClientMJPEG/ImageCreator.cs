@@ -54,10 +54,9 @@ namespace ClientMJPEG
                         var readBuffer = new Memory<byte>(new byte[packageSize]);
 
                         var readTask = stream.ReadAsync(readBuffer);
-                        while (stream.CanRead && !_stop)
+                        while (!_stop && stream.CanRead)
                         {
-                            var size = await readTask;
-
+                            var readSize = await readTask;
                             if (packageSize > currentPackageSize)
                             {
                                 var newBuffer = new Memory<byte>(new byte[2 * packageSize]);
@@ -67,7 +66,7 @@ namespace ClientMJPEG
                             }
 
                             FillPartImageBuffer(readBuffer, partImageBuffer, partImageBufferSize);
-                            partImageBufferSize = partImageBufferSize + size;
+                            partImageBufferSize += readSize;
 
                             if (packageSize > currentPackageSize)
                                 readBuffer = new Memory<byte>(new byte[packageSize]);
