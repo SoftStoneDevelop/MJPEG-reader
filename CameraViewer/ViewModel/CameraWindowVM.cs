@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -48,9 +49,10 @@ namespace CameraViewer.ViewModel
                             if (_cancellationTokenSource.Token.IsCancellationRequested)
                                 break;
 
-                            using var ms = new MemoryStream(imageData);
+                            var ms = new MemoryStream(imageData);
                             JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
                             var source = decoder.Frames[0];
+                            _imageCreator.ReturnArray(imageData);
 
                             if (_writableBitmap == null)
                             {
@@ -90,9 +92,20 @@ namespace CameraViewer.ViewModel
                             }));
                         }
                     }
-                    catch
+                    catch (OperationCanceledException)
                     {
                         //ignore
+                    }
+                    catch (AggregateException agg)
+                    {
+                        if (agg.InnerExceptions.Any(ex => !(ex is OperationCanceledException)))
+                            throw;
+
+                        //ignore
+                    }
+                    catch
+                    {
+                        throw;
                     }
                 }, TaskCreationOptions.LongRunning, _cancellationTokenSource.Token);
 

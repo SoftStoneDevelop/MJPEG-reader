@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -148,7 +149,21 @@ namespace ClientMJPEG
                         }
                     }
                 }
-                catch { }
+                catch (OperationCanceledException)
+                {
+                    //ignore
+                }
+                catch (AggregateException agg)
+                {
+                    if (agg.InnerExceptions.Any(ex => !(ex is OperationCanceledException)))
+                        throw;
+
+                    //ignore
+                }
+                catch
+                {
+                    throw;
+                }
             }, TaskCreationOptions.LongRunning);
 
             return true;

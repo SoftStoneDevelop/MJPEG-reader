@@ -1,6 +1,7 @@
 ﻿using ClientMJPEG;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -39,6 +40,7 @@ namespace CameraViewer.ViewModel
                         var ms = new MemoryStream(imageData);
                         JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
                         var source = decoder.Frames[0];
+                        _imageCreator.ReturnArray(imageData);
 
                         if (_writableBitmap == null)
                         {
@@ -67,7 +69,6 @@ namespace CameraViewer.ViewModel
                         }
 
                         source.CopyPixels(_rect, _pixels, _stride, 0);
-                        _imageCreator.ReturnArray(imageData);
 
                         Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)(() =>
                         {
@@ -79,9 +80,20 @@ namespace CameraViewer.ViewModel
                         }));
                     }
                 }
-                catch
+                catch (OperationCanceledException)
                 {
                     //ignore
+                }
+                catch (AggregateException agg)
+                {
+                    if (agg.InnerExceptions.Any(ex => !(ex is OperationCanceledException)))
+                        throw;
+
+                    //ignore
+                }
+                catch
+                {
+                    throw;
                 }
             }, _cancellationTokenSource.Token);
         }
