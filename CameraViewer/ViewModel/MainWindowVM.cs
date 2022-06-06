@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using CameraViewer.Factories;
+using System.Runtime;
 
 namespace CameraViewer.ViewModel
 {
@@ -59,6 +60,8 @@ namespace CameraViewer.ViewModel
                                     += (_, _) =>
                                     {
                                         window.Dispatcher.BeginInvokeShutdown(DispatcherPriority.Normal);
+                                        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                                        GC.Collect();
                                     };
 
                                 window.Show();
@@ -85,6 +88,8 @@ namespace CameraViewer.ViewModel
                             {
                                 item.Dispose();
                             });
+                            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                            GC.Collect();
                         }
                     }
                 )
