@@ -25,6 +25,8 @@ namespace CameraViewer.ViewModel
             _imageCreatorFactory = imageCreatorFactory ?? throw new ArgumentNullException(nameof(imageCreatorFactory));
             _windowCreatorService = windowCreatorService ?? throw new ArgumentNullException(nameof(windowCreatorService));
 
+            NewCameraHost = "31.160.161.51";
+            NewCameraPort = "8081";
             Cameras = new ObservableCollection<CameraItemVM>();
 
             AddCameraCommand = new DelegateCommand(

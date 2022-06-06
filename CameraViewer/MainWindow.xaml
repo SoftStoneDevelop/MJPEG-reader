@@ -57,7 +57,7 @@
                             Command="{Binding  .DataContext.CloseCameraCommand, ElementName=RootWindow}"
                             CommandParameter="{Binding .}"
                             />
-                        <Image Source="{Binding CameraImage}"/>
+                        <ContentControl Content="{Binding CameraImage}"/>
                     </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>

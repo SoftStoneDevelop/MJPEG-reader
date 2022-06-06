@@ -10,8 +10,8 @@
         SizeToContent="WidthAndHeight"
         >
     <Grid>
-        <Image
-            Source="{Binding CameraImage}"
+        <ContentControl
+            Content="{Binding CameraImage}"
             Width="Auto"
             Height="Auto"
             HorizontalAlignment="Center"

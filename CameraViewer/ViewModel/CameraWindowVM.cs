@@ -2,6 +2,8 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ClientMJPEG;
@@ -42,27 +44,49 @@ namespace CameraViewer.ViewModel
                         while (await _imageCreator.ImageByteReader.WaitToReadAsync(_cancellationTokenSource.Token))
                         {
                             var imageData = await _imageCreator.ImageByteReader.ReadAsync(_cancellationTokenSource.Token);
-                            var ms = new MemoryStream(imageData);
-
 
                             if (_cancellationTokenSource.Token.IsCancellationRequested)
                                 break;
 
-                            var tempImage = CameraImage;
-                            _dispatcher.BeginInvoke(DispatcherPriority.Normal, (ThreadStart)(() =>
+                            if (_writableBitmap == null)
                             {
                                 var image = new BitmapImage();
                                 image.BeginInit();
+                                using var ms = new MemoryStream(imageData);
                                 image.StreamSource = ms;
                                 image.EndInit();
 
-                                CameraImage = image;
-                            }));
+                                _writableBitmap = new WriteableBitmap(
+                                    image.PixelWidth,
+                                    image.PixelHeight,
+                                    image.DpiX,
+                                    image.DpiY,
+                                    image.Format,
+                                    null
+                                    );
 
-                            _dispatcher.BeginInvoke(DispatcherPriority.Background, (ThreadStart)(() =>
-                            {
-                                tempImage?.StreamSource?.Dispose();
-                            }));
+                                if (_cameraImage == null)
+                                {
+                                    _dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)(() =>
+                                    {
+                                        CameraImage = new Image
+                                        {
+                                            Source = _writableBitmap,
+                                            HorizontalAlignment = HorizontalAlignment.Center,
+                                            VerticalAlignment = VerticalAlignment.Center,
+                                        };
+                                    }));
+                                }
+                            }
+
+                            var rect = new Int32Rect(0, 0, _writableBitmap.PixelWidth, _writableBitmap.PixelHeight);
+                            var stride = (rect.Width * _writableBitmap.Format.BitsPerPixel + 7) / 8;
+
+                            _writableBitmap.WritePixels(
+                                rect,
+                                imageData,
+                                stride,
+                                0);
 
                             //TODO save to selected folder
                             //image.Save(@$"E:\work\mjpeg task\mjpeg\image{DateTime.UtcNow}.jpg");
@@ -77,12 +101,13 @@ namespace CameraViewer.ViewModel
             }, _cancellationTokenSource.Token);
         }
 
-        public BitmapImage CameraImage
+        public Image CameraImage
         {
             get => _cameraImage;
             set => Set(ref _cameraImage, value);
         }
-        private BitmapImage _cameraImage;
+        private Image _cameraImage;
+        private WriteableBitmap _writableBitmap;
 
         public void Dispose()
         {
