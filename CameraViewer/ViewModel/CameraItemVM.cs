@@ -84,14 +84,7 @@ namespace CameraViewer.ViewModel
                 {
                     //ignore
                 }
-                catch (AggregateException agg)
-                {
-                    if (agg.InnerExceptions.Any(ex => !(ex is OperationCanceledException)))
-                        throw;
-
-                    //ignore
-                }
-                catch
+                catch (AggregateException agg) when (agg.InnerExceptions.Any(ex => ex is not OperationCanceledException))
                 {
                     throw;
                 }

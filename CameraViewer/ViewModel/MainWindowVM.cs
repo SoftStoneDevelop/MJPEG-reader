@@ -68,7 +68,7 @@ namespace CameraViewer.ViewModel
 
                                 Dispatcher.Run();
                             }
-                            catch { }
+                            catch { /* ignore*/ }
                         });
 
                         thread.SetApartmentState(ApartmentState.STA);

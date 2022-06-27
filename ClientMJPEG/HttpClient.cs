@@ -66,7 +66,7 @@ namespace ClientMJPEG
                 {
                     Socket.Shutdown(SocketShutdown.Both);
                 }
-                catch (SocketException) { }
+                catch (SocketException) { /* ignore*/ }
 
                 Socket?.Close();
                 Socket?.Dispose();
@@ -78,7 +78,7 @@ namespace ClientMJPEG
 
                 IsSocketDisposed = true;
             }
-            catch (ObjectDisposedException) { }
+            catch (ObjectDisposedException) { /* ignore*/ }
 
             return true;
         }
