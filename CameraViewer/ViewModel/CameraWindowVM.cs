@@ -54,7 +54,7 @@ namespace CameraViewer.ViewModel
                                 if (_cancellationTokenSource.Token.IsCancellationRequested)
                                     break;
 
-                                imageData.Memory.CopyTo(data);
+                                imageData.Memory.CopyTo(data);//TODO fix double copying, memory stream don't support span
                                 var ms = new MemoryStream(data);
                                 JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
                                 source = decoder.Frames[0];
