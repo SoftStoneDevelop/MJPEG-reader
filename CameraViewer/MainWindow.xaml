@@ -44,21 +44,30 @@
         <ListView
             Grid.Row="1"
             ItemsSource="{Binding Cameras}"
-            ScrollViewer.VerticalScrollBarVisibility="Visible"
             ScrollViewer.CanContentScroll="False"
             VirtualizingPanel.ScrollUnit="Pixel"
             VirtualizingPanel.IsVirtualizing="True"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
             >
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
                         <Button 
+                            Grid.Row="0"
                             Content="CloseCamera"
                             Command="{Binding  .DataContext.CloseCameraCommand, ElementName=RootWindow}"
                             CommandParameter="{Binding .}"
+                            HorizontalAlignment="Right"
                             />
-                        <ContentControl Content="{Binding CameraImage}"/>
-                    </StackPanel>
+                        <ContentControl
+                            Grid.Row="0"
+                            Content="{Binding CameraImage}"
+                            />
+                    </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>

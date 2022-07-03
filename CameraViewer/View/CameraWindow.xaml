@@ -8,14 +8,12 @@
         Height="450"
         Width="800"
         SizeToContent="WidthAndHeight"
+        MaxHeight="{Binding CameraImage.MaxHeight}"
+        MaxWidth="{Binding CameraImage.MaxWidth}"
         >
     <Grid>
         <ContentControl
             Content="{Binding CameraImage}"
-            Width="Auto"
-            Height="Auto"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
             />
     </Grid>
 </Window>

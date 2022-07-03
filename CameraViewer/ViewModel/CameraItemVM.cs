@@ -74,6 +74,8 @@ namespace CameraViewer.ViewModel
                                     Source = _writableBitmap,
                                     HorizontalAlignment = HorizontalAlignment.Center,
                                     VerticalAlignment = VerticalAlignment.Center,
+                                    MaxWidth = source.Width,
+                                    MaxHeight = source.Height,
                                 };
                             }));
                         }
