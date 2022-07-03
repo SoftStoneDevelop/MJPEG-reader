@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -9,9 +10,9 @@ namespace ClientMJPEG
 {
     public class ImageCreator : IDisposable
     {
-        private static byte[] _contentLengthBytes = Encoding.UTF8.GetBytes("\nContent-Length: ");
-        private static byte[] _newLineBytes = Encoding.UTF8.GetBytes("\n");
-        private static int _carriageReturnSize = Encoding.UTF8.GetBytes("\r").Length;
+        private static readonly byte[] _contentLengthBytes = Encoding.UTF8.GetBytes("\nContent-Length: ");
+        private static readonly byte[] _newLineBytes = Encoding.UTF8.GetBytes("\n");
+        private static readonly int _carriageReturnSize = Encoding.UTF8.GetBytes("\r").Length;
 
         private Task _routine;
         private volatile bool _stop = false;
@@ -96,22 +97,16 @@ namespace ClientMJPEG
                                     var indexContentLengthStart = prcessSlice.FindBytesIndex(_contentLengthBytes);
                                     if (indexContentLengthStart == -1)
                                     {
-                                        //write part and process next package from stream
                                         process = false;
-                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                        payloadSize = payloadSize - processOffset;
-                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
                                     var indexContentLengthEnd = indexContentLengthStart + _contentLengthBytes.Length;
                                     if (indexContentLengthEnd > prcessSlice.Length)
                                     {
-                                        //write part and process next package from stream
                                         process = false;
-                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                        payloadSize = payloadSize - processOffset;
-                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
@@ -119,11 +114,8 @@ namespace ClientMJPEG
                                     var indexEndLength = prcessSlice.FindBytesIndex(_newLineBytes);
                                     if (indexEndLength == -1)
                                     {
-                                        //write part and process next package from stream
                                         process = false;
-                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                        payloadSize = payloadSize - processOffset;
-                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
@@ -139,11 +131,8 @@ namespace ClientMJPEG
 
                                     if(prcessSlice.Length <= _newLineBytes.Length * 2 + _carriageReturnSize)
                                     {
-                                        //write part and process next package from stream
                                         process = false;
-                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                        payloadSize = payloadSize - processOffset;
-                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        copyPayloadDataToStart();
                                         continue;
                                     }
                                     else
@@ -153,11 +142,8 @@ namespace ClientMJPEG
 
                                     if(prcessSlice.Length < imageSize)
                                     {
-                                        //write part and process next package from stream
                                         process = false;
-                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                        payloadSize = payloadSize - processOffset;
-                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
@@ -182,6 +168,14 @@ namespace ClientMJPEG
                                     {
                                         memory.Dispose();
                                         throw;
+                                    }
+
+                                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                                    void copyPayloadDataToStart()
+                                    {
+                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                        payloadSize -= processOffset;
+                                        prcessSlice.CopyTo(imageBuffer.Memory);
                                     }
                                 }
                             }
