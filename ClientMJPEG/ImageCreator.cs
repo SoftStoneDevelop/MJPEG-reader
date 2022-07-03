@@ -70,20 +70,24 @@ namespace ClientMJPEG
                                     imageBuffer.Memory.CopyTo(newImageBuffer.Memory);
                                     imageBuffer.Dispose();
                                     imageBuffer = newImageBuffer;
-
-                                    var newReadBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
-                                    readBuffer.Memory.CopyTo(newReadBuffer.Memory);
-                                    readBuffer.Dispose();
-                                    readBuffer = newReadBuffer;
                                 }
-
-                                if(readSize > imageBuffer.Memory.Length - payloadSize)//this happens if the size of the image is not yet known
+                                else
+                                if (readSize > imageBuffer.Memory.Length - payloadSize)//this happens if the size of the image is not yet known
                                 {
                                     var newImageBuffer = MemoryPool<byte>.Shared.Rent((payloadSize + readSize) * 2);
                                     imageBuffer.Memory.CopyTo(newImageBuffer.Memory);
                                     imageBuffer.Dispose();
                                     imageBuffer = newImageBuffer;
                                 }
+
+                                if (packageSize > readBuffer.Memory.Length)
+                                {
+                                    var newReadBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
+                                    readBuffer.Memory.CopyTo(newReadBuffer.Memory);
+                                    readBuffer.Dispose();
+                                    readBuffer = newReadBuffer;
+                                }
+
                                 readBuffer.Memory.Slice(0, readSize).CopyTo(imageBuffer.Memory.Slice(payloadSize));
                                 payloadSize += readSize;
 
