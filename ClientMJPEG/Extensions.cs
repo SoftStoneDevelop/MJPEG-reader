@@ -20,10 +20,9 @@ namespace ClientMJPEG
                 if (source.Length - i < pattern.Length)
                     return index;
 
-                var temp = source.Slice(i, pattern.Length);
                 for (int j = 0; j < pattern.Length; j++)
                 {
-                    if (temp.Span[j] == pattern.Span[j])
+                    if (source.Span[i + j] == pattern.Span[j])
                     {
                         if (j == pattern.Length - 1)
                         {

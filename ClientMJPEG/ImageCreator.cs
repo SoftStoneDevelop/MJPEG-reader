@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Buffers;
-using System.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -17,7 +15,9 @@ namespace ClientMJPEG
 
         private Task _routine;
         private volatile bool _stop = false;
-        private readonly Channel<IMemoryOwner<byte>> _channel = Channel.CreateUnbounded<IMemoryOwner<byte>>(new UnboundedChannelOptions { SingleWriter = true, SingleReader = true });
+        private readonly Channel<IMemoryOwner<byte>> _channel = Channel.CreateUnbounded<IMemoryOwner<byte>>(
+            new UnboundedChannelOptions { SingleWriter = true, SingleReader = true }
+            );
 
         private EndPoint _endPoint;
         private HttpClient _client;
@@ -39,7 +39,7 @@ namespace ClientMJPEG
             if (!result)
                 return false;
 
-            _routine = Task.Factory.StartNew<Task>(async () =>
+            _routine = Task.Factory.StartNew(async () =>
             {
                 try
                 {
@@ -47,104 +47,136 @@ namespace ClientMJPEG
                     {
                         _client.RequestGetOnStream("/mjpg/video.mjpg");
 
-                        var packageSize = 10000;
+                        var packageSize = 500;
                         var currentPackageSize = packageSize;
 
-                        var partImageBuffer = new Memory<byte>(new byte[2 * packageSize]);
-                        var partImageBufferSize = 0;
+                        var imageBuffer = MemoryPool<byte>.Shared.Rent(2 * packageSize);
+                        var payloadSize = 0;
 
-                        var readBuffer = new Memory<byte>(new byte[packageSize]);
+                        var readBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
 
-                        var readTask = stream.ReadAsync(readBuffer);
-                        while (!_stop && stream.CanRead)
+                        var lengthImageBuffer = MemoryPool<char>.Shared.Rent(Encoding.UTF8.GetMaxCharCount(sizeof(int)));
+
+                        try
                         {
-                            var readSize = await readTask;
-                            if (packageSize > currentPackageSize)
+                            var readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, packageSize * 2));
+                            while (!_stop && stream.CanRead)
                             {
-                                var newBuffer = new Memory<byte>(new byte[2 * packageSize]);
-                                
-                                partImageBuffer.CopyTo(newBuffer);
-                                partImageBuffer = newBuffer;
-                            }
-
-                            FillPartImageBuffer(readBuffer, partImageBuffer, partImageBufferSize);
-                            partImageBufferSize += readSize;
-
-                            if (packageSize > currentPackageSize)
-                                readBuffer = new Memory<byte>(new byte[packageSize]);
-
-                            readTask = stream.ReadAsync(readBuffer);
-
-                            currentPackageSize = packageSize;
-                            var processOffset = 0;
-                            var process = true;
-                            while (process)
-                            {
-                                var prcessSlice = partImageBuffer.Slice(processOffset, partImageBufferSize - processOffset);
-                                var indexContentLengthStart = prcessSlice.FindBytesIndex(_contentLengthBytes);
-                                if (indexContentLengthStart == -1)
+                                var readSize = await readTask;
+                                if(packageSize > imageBuffer.Memory.Length)
                                 {
-                                    //write part and process next package from stream
-                                    process = false;
-                                    partImageBufferSize = FillPartImageBuffer(prcessSlice, partImageBuffer, 0);
-                                    continue;
+                                    var newImageBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
+                                    imageBuffer.Memory.CopyTo(newImageBuffer.Memory);
+                                    imageBuffer.Dispose();
+                                    imageBuffer = newImageBuffer;
+
+                                    var newReadBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
+                                    readBuffer.Memory.CopyTo(newReadBuffer.Memory);
+                                    readBuffer.Dispose();
+                                    readBuffer = newReadBuffer;
                                 }
 
-                                var indexContentLengthEnd = indexContentLengthStart + _contentLengthBytes.Length;
-                                if (indexContentLengthEnd > prcessSlice.Length)
+                                if(readSize > imageBuffer.Memory.Length - payloadSize)//this happens if the size of the image is not yet known
                                 {
-                                    //write part and process next package from stream
-                                    process = false;
-                                    partImageBufferSize = FillPartImageBuffer(prcessSlice, partImageBuffer, 0);
-                                    continue;
+                                    var newImageBuffer = MemoryPool<byte>.Shared.Rent((payloadSize + readSize) * 2);
+                                    imageBuffer.Memory.CopyTo(newImageBuffer.Memory);
+                                    imageBuffer.Dispose();
+                                    imageBuffer = newImageBuffer;
                                 }
+                                readBuffer.Memory.Slice(0, readSize).CopyTo(imageBuffer.Memory.Slice(payloadSize));
+                                payloadSize += readSize;
 
-                                var indexEndLength = prcessSlice.Slice(indexContentLengthEnd).FindBytesIndex(_newLineBytes);
-                                if (indexEndLength == -1)
+                                readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, packageSize * 2));
+
+                                var processOffset = 0;
+                                var process = true;
+                                while (process)
                                 {
-                                    //write part and process next package from stream
-                                    process = false;
-                                    partImageBufferSize = FillPartImageBuffer(prcessSlice, partImageBuffer, 0);
-                                    continue;
-                                }
+                                    var prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                    var indexContentLengthStart = prcessSlice.FindBytesIndex(_contentLengthBytes);
+                                    if (indexContentLengthStart == -1)
+                                    {
+                                        //write part and process next package from stream
+                                        process = false;
+                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                        payloadSize = payloadSize - processOffset;
+                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        continue;
+                                    }
 
-                                indexEndLength += indexContentLengthEnd;
-                                if (indexEndLength - (indexContentLengthEnd + 1) > prcessSlice.Length)
-                                {
-                                    //write part and process next package from stream
-                                    process = false;
-                                    partImageBufferSize = FillPartImageBuffer(prcessSlice, partImageBuffer, 0);
-                                    continue;
-                                }
+                                    var indexContentLengthEnd = indexContentLengthStart + _contentLengthBytes.Length;
+                                    if (indexContentLengthEnd > prcessSlice.Length)
+                                    {
+                                        //write part and process next package from stream
+                                        process = false;
+                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                        payloadSize = payloadSize - processOffset;
+                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        continue;
+                                    }
 
-                                var lengthStr = Encoding.UTF8.GetString(prcessSlice.Span.Slice(indexContentLengthEnd, indexEndLength - (indexContentLengthEnd + 1)));
-                                var imageSize = int.Parse(lengthStr);
-                                if (imageSize > currentPackageSize)
-                                    packageSize = imageSize;
+                                    prcessSlice = prcessSlice.Slice(indexContentLengthEnd);
+                                    var indexEndLength = prcessSlice.FindBytesIndex(_newLineBytes);
+                                    if (indexEndLength == -1)
+                                    {
+                                        //write part and process next package from stream
+                                        process = false;
+                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                        payloadSize = payloadSize - processOffset;
+                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        continue;
+                                    }
 
-                                var imageStartIndex = indexEndLength + (_newLineBytes.Length * 2 + _carriageReturnSize);
+                                    var charsCount = Encoding.UTF8.GetCharCount(prcessSlice.Span.Slice(0, indexEndLength));
+                                    Encoding.UTF8.GetChars(
+                                        prcessSlice.Span.Slice(0, indexEndLength),
+                                        lengthImageBuffer.Memory.Span
+                                        );
+                                    prcessSlice = prcessSlice.Slice(indexEndLength);
+                                    var imageSize = int.Parse(lengthImageBuffer.Memory.Span.Slice(0, charsCount));
+                                    if (imageSize > currentPackageSize)
+                                        packageSize = imageSize;
 
-                                if (imageStartIndex + imageSize > prcessSlice.Length)
-                                {
-                                    //write part and process next package from stream
-                                    process = false;
-                                    partImageBufferSize = FillPartImageBuffer(prcessSlice, partImageBuffer, 0);
-                                    continue;
-                                }
+                                    if(prcessSlice.Length <= _newLineBytes.Length * 2 + _carriageReturnSize)
+                                    {
+                                        //write part and process next package from stream
+                                        process = false;
+                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                        payloadSize = payloadSize - processOffset;
+                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        prcessSlice = prcessSlice.Slice(_newLineBytes.Length * 2 + _carriageReturnSize);
+                                    }
 
-                                if (imageStartIndex + imageSize == prcessSlice.Length)
-                                {
-                                    partImageBufferSize = 0;
-                                    process = false;
-                                }
-                                else
-                                {
-                                    var memory = MemoryPool<byte>.Shared.Rent(imageStartIndex + imageSize);
+                                    if(prcessSlice.Length < imageSize)
+                                    {
+                                        //write part and process next package from stream
+                                        process = false;
+                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
+                                        payloadSize = payloadSize - processOffset;
+                                        prcessSlice.CopyTo(imageBuffer.Memory);
+                                        continue;
+                                    }
+
+                                    if(imageSize == prcessSlice.Length)
+                                    {
+                                        payloadSize = 0;
+                                        process = false;
+                                    }
+                                    else
+                                    {
+                                        processOffset += prcessSlice.Length;
+                                    }
+
+                                    prcessSlice = prcessSlice.Slice(0, imageSize);
+                                    var memory = MemoryPool<byte>.Shared.Rent(imageSize);
                                     try
                                     {
-                                        prcessSlice.Span.Slice(imageStartIndex, imageSize).CopyTo(memory.Memory.Span);
+                                        prcessSlice.Span.CopyTo(memory.Memory.Span);
                                         _channel.Writer.TryWrite(memory);
-                                        processOffset += imageStartIndex + imageSize;
                                     }
                                     catch
                                     {
@@ -154,28 +186,21 @@ namespace ClientMJPEG
                                 }
                             }
                         }
+                        finally
+                        {
+                            imageBuffer.Dispose();
+                            readBuffer.Dispose();
+                            lengthImageBuffer.Dispose();
+                        }
                     }
                 }
                 catch (OperationCanceledException)
                 {
                     //ignore
                 }
-                catch (AggregateException agg) when (agg.InnerExceptions.Any(ex => ex is not OperationCanceledException))
-                {
-                    throw;
-                }
             }, TaskCreationOptions.LongRunning);
 
             return true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int FillPartImageBuffer(Memory<byte> memorySource, Memory<byte> memoryDestination, int destinationStartIndex)
-        {
-            for (int i = 0; i < memorySource.Span.Length; i++)
-                memoryDestination.Span[destinationStartIndex + i] = memorySource.Span[i];
-
-            return memorySource.Length;
         }
 
         public bool Stop()
@@ -205,6 +230,12 @@ namespace ClientMJPEG
                         _routine?.Dispose();
                     }
                     catch { /*ignore*/ }
+
+                    _channel.Writer.Complete();
+                    while (_channel.Reader.TryRead(out var memoryOwner))
+                    {
+                        memoryOwner.Dispose();
+                    }
                 }
 
                 _isDisposed = true;
