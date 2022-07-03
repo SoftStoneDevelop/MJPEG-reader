@@ -1,12 +1,12 @@
 ﻿using ClientMJPEG;
 using System;
+using System.Buffers;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using DispatcherPriority = System.Windows.Threading.DispatcherPriority;
 
@@ -33,14 +33,24 @@ namespace CameraViewer.ViewModel
                     while (await _imageCreator.ImageByteReader.WaitToReadAsync(_cancellationTokenSource.Token))
                     {
                         var imageData = await _imageCreator.ImageByteReader.ReadAsync(_cancellationTokenSource.Token);
+                        var pool = ArrayPool<byte>.Shared;
+                        var data = pool.Rent(imageData.Memory.Length);
+                        BitmapFrame source;
+                        try
+                        {
+                            if (_cancellationTokenSource.Token.IsCancellationRequested)
+                                break;
 
-                        if (_cancellationTokenSource.Token.IsCancellationRequested)
-                            break;
-
-                        var ms = new MemoryStream(imageData);
-                        JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
-                        var source = decoder.Frames[0];
-                        _imageCreator.ReturnArray(imageData);
+                            imageData.Memory.CopyTo(data);
+                            var ms = new MemoryStream(data);
+                            JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
+                            source = decoder.Frames[0];
+                        }
+                        finally
+                        {
+                            imageData.Dispose();
+                            pool.Return(data);
+                        }
 
                         if (_writableBitmap == null)
                         {

@@ -17,8 +17,7 @@ namespace ClientMJPEG
 
         private Task _routine;
         private volatile bool _stop = false;
-        private readonly Channel<byte[]> _channel = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleWriter = true, SingleReader = true });
-        ArrayPool<byte> _arrayPool = ArrayPool<byte>.Shared;
+        private readonly Channel<IMemoryOwner<byte>> _channel = Channel.CreateUnbounded<IMemoryOwner<byte>>(new UnboundedChannelOptions { SingleWriter = true, SingleReader = true });
 
         private EndPoint _endPoint;
         private HttpClient _client;
@@ -29,7 +28,7 @@ namespace ClientMJPEG
             _endPoint = endpoint;
         }
 
-        public ChannelReader<byte[]> ImageByteReader => _channel.Reader;
+        public ChannelReader<IMemoryOwner<byte>> ImageByteReader => _channel.Reader;
 
         public bool Start()
         {
@@ -140,10 +139,18 @@ namespace ClientMJPEG
                                 }
                                 else
                                 {
-                                    var array = _arrayPool.Rent(imageStartIndex + imageSize);
-                                    prcessSlice.Span.Slice(imageStartIndex, imageSize).CopyTo(array);
-                                    _channel.Writer.TryWrite(array);
-                                    processOffset += imageStartIndex + imageSize;
+                                    var memory = MemoryPool<byte>.Shared.Rent(imageStartIndex + imageSize);
+                                    try
+                                    {
+                                        prcessSlice.Span.Slice(imageStartIndex, imageSize).CopyTo(memory.Memory.Span);
+                                        _channel.Writer.TryWrite(memory);
+                                        processOffset += imageStartIndex + imageSize;
+                                    }
+                                    catch
+                                    {
+                                        memory.Dispose();
+                                        throw;
+                                    }
                                 }
                             }
                         }
@@ -160,11 +167,6 @@ namespace ClientMJPEG
             }, TaskCreationOptions.LongRunning);
 
             return true;
-        }
-
-        public void ReturnArray(byte[] array)
-        {
-            _arrayPool.Return(array);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
