@@ -9,8 +9,8 @@ namespace ClientMJPEG
         /// </summary>
         /// <returns>-1 if not find in source</returns>
         public static int FindBytesIndex(
-            this Memory<byte> source,
-            Memory<byte> pattern
+            this Span<byte> source,
+            Span<byte> pattern
         )
         {
             var index = -1;
@@ -22,7 +22,7 @@ namespace ClientMJPEG
 
                 for (int j = 0; j < pattern.Length; j++)
                 {
-                    if (source.Span[i + j] == pattern.Span[j])
+                    if (source[i + j] == pattern[j])
                     {
                         if (j == pattern.Length - 1)
                         {

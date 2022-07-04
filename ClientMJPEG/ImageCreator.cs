@@ -98,7 +98,7 @@ namespace ClientMJPEG
                                 while (process)
                                 {
                                     var prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                    var indexContentLengthStart = prcessSlice.FindBytesIndex(_contentLengthBytes);
+                                    var indexContentLengthStart = prcessSlice.Span.FindBytesIndex(_contentLengthBytes);
                                     if (indexContentLengthStart == -1)
                                     {
                                         process = false;
@@ -115,7 +115,7 @@ namespace ClientMJPEG
                                     }
 
                                     prcessSlice = prcessSlice.Slice(indexContentLengthEnd);
-                                    var indexEndLength = prcessSlice.FindBytesIndex(_newLineBytes);
+                                    var indexEndLength = prcessSlice.Span.FindBytesIndex(_newLineBytes);
                                     if (indexEndLength == -1)
                                     {
                                         process = false;
