@@ -48,50 +48,47 @@ namespace ClientMJPEG
                     {
                         _client.RequestGetOnStream("/mjpg/video.mjpg");
 
-                        var packageSize = 500;
-                        var currentPackageSize = packageSize;
+                        var readBufferSize = 1024;
+                        var readBuffer = MemoryPool<byte>.Shared.Rent(readBufferSize);
+                        readBufferSize = readBuffer.Memory.Length;
 
-                        var imageBuffer = MemoryPool<byte>.Shared.Rent(2 * packageSize);
+                        var imageBufferSize = readBufferSize;
+                        var imageBuffer = MemoryPool<byte>.Shared.Rent(imageBufferSize);
+                        imageBufferSize = imageBuffer.Memory.Length;
+                        var newIBufferSize = -1;
                         var payloadSize = 0;
-
-                        var readBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
 
                         var lengthImageBuffer = MemoryPool<char>.Shared.Rent(Encoding.UTF8.GetMaxCharCount(sizeof(int)));
 
                         try
                         {
-                            var readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, packageSize * 2));
+                            var readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, readBufferSize));
                             while (!_stop && stream.CanRead)
                             {
                                 var readSize = await readTask;
-                                if(packageSize > imageBuffer.Memory.Length)
+                                if(newIBufferSize != -1)
                                 {
-                                    var newImageBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
-                                    imageBuffer.Memory.CopyTo(newImageBuffer.Memory);
+                                    var newImageBuffer = MemoryPool<byte>.Shared.Rent(newIBufferSize);
+                                    imageBuffer.Memory.Slice(0, payloadSize).CopyTo(newImageBuffer.Memory);
                                     imageBuffer.Dispose();
                                     imageBuffer = newImageBuffer;
-                                }
-                                else
-                                if (readSize > imageBuffer.Memory.Length - payloadSize)//this happens if the size of the image is not yet known
-                                {
-                                    var newImageBuffer = MemoryPool<byte>.Shared.Rent((payloadSize + readSize) * 2);
-                                    imageBuffer.Memory.CopyTo(newImageBuffer.Memory);
-                                    imageBuffer.Dispose();
-                                    imageBuffer = newImageBuffer;
+                                    imageBufferSize = imageBuffer.Memory.Length;
+                                    newIBufferSize = -1;
                                 }
 
-                                if (packageSize > readBuffer.Memory.Length)
+                                if(imageBufferSize - payloadSize < readBufferSize)
                                 {
-                                    var newReadBuffer = MemoryPool<byte>.Shared.Rent(packageSize * 2);
-                                    readBuffer.Memory.CopyTo(newReadBuffer.Memory);
-                                    readBuffer.Dispose();
-                                    readBuffer = newReadBuffer;
+                                    var newImageBuffer = MemoryPool<byte>.Shared.Rent(imageBufferSize * 2);
+                                    imageBuffer.Memory.Slice(0, payloadSize).CopyTo(newImageBuffer.Memory);
+                                    imageBuffer.Dispose();
+                                    imageBuffer = newImageBuffer;
+                                    imageBufferSize = imageBuffer.Memory.Length;
                                 }
 
                                 readBuffer.Memory.Slice(0, readSize).CopyTo(imageBuffer.Memory.Slice(payloadSize));
                                 payloadSize += readSize;
 
-                                readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, packageSize * 2));
+                                readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, readBufferSize));
 
                                 var processOffset = 0;
                                 var process = true;
@@ -130,8 +127,10 @@ namespace ClientMJPEG
                                         );
                                     prcessSlice = prcessSlice.Slice(indexEndLength);
                                     var imageSize = int.Parse(lengthImageBuffer.Memory.Span.Slice(0, charsCount));
-                                    if (imageSize > currentPackageSize)
-                                        packageSize = imageSize;
+                                    if (imageSize * 2 > imageBufferSize)
+                                    {
+                                        newIBufferSize = imageSize * 2;
+                                    }
 
                                     if(prcessSlice.Length <= _newLineBytes.Length * 2 + _carriageReturnSize)
                                     {
