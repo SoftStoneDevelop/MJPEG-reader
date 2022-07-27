@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Threading.Channels;
@@ -95,6 +96,15 @@ namespace ClientMJPEG
 
                                 if(imageBufferSize - payloadOffset - payloadSize < readBufferSize)
                                 {
+                                    var payloadData = imageBuffer.Memory.Slice(payloadOffset, payloadSize);
+                                    var all = imageBuffer.Memory.Slice(0);
+
+                                    int dest = 0;
+                                    for (int i = payloadOffset; i < payloadData.Length; i++)
+                                    {
+                                        all.Span[dest++] = payloadData.Span[i];
+                                    }
+
                                     imageBuffer.Memory.Slice(payloadOffset, payloadSize).CopyTo(imageBuffer.Memory);
                                     payloadOffset = 0;
                                 }
