@@ -54,7 +54,7 @@
                     <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Button 
                             Grid.Row="0"
@@ -64,7 +64,7 @@
                             HorizontalAlignment="Right"
                             />
                         <ContentControl
-                            Grid.Row="0"
+                            Grid.Row="1"
                             Content="{Binding CameraImage}"
                             />
                     </Grid>
