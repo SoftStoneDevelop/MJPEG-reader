@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -57,9 +56,9 @@ namespace ClientMJPEG
                         imageBufferSize = imageBuffer.Memory.Length;
                         var newIBufferSize = -1;
                         var payloadSize = 0;
+                        var payloadOffset = 0;
 
                         var lengthImageBuffer = MemoryPool<char>.Shared.Rent(Encoding.UTF8.GetMaxCharCount(sizeof(int)));
-
                         try
                         {
                             var readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, readBufferSize));
@@ -69,63 +68,82 @@ namespace ClientMJPEG
                                 if(newIBufferSize != -1)
                                 {
                                     var newImageBuffer = MemoryPool<byte>.Shared.Rent(newIBufferSize);
-                                    imageBuffer.Memory.Slice(0, payloadSize).CopyTo(newImageBuffer.Memory);
+                                    imageBuffer.Memory.Slice(payloadOffset, payloadSize).CopyTo(newImageBuffer.Memory);
+                                    payloadOffset = 0;
                                     imageBuffer.Dispose();
                                     imageBuffer = newImageBuffer;
                                     imageBufferSize = imageBuffer.Memory.Length;
+
+                                    var newReadBuffer = MemoryPool<byte>.Shared.Rent(newIBufferSize/2);
+                                    readBuffer.Memory.Slice(0, readBufferSize).CopyTo(newReadBuffer.Memory);
+                                    readBuffer.Dispose();
+                                    readBuffer = newReadBuffer;
+                                    readBufferSize = readBuffer.Memory.Length;
+
                                     newIBufferSize = -1;
                                 }
 
                                 if(imageBufferSize - payloadSize < readBufferSize)
                                 {
                                     var newImageBuffer = MemoryPool<byte>.Shared.Rent(imageBufferSize * 2);
-                                    imageBuffer.Memory.Slice(0, payloadSize).CopyTo(newImageBuffer.Memory);
+                                    imageBuffer.Memory.Slice(payloadOffset, payloadSize).CopyTo(newImageBuffer.Memory);
+                                    payloadOffset = 0;
                                     imageBuffer.Dispose();
                                     imageBuffer = newImageBuffer;
                                     imageBufferSize = imageBuffer.Memory.Length;
                                 }
 
-                                readBuffer.Memory.Slice(0, readSize).CopyTo(imageBuffer.Memory.Slice(payloadSize));
+                                if(imageBufferSize - payloadOffset - payloadSize < readBufferSize)
+                                {
+                                    imageBuffer.Memory.Slice(payloadOffset, payloadSize).CopyTo(imageBuffer.Memory);
+                                    payloadOffset = 0;
+                                }
+
+                                readBuffer.Memory.Slice(0, readSize).CopyTo(imageBuffer.Memory.Slice(payloadOffset + payloadSize));
                                 payloadSize += readSize;
 
                                 readTask = stream.ReadAsync(readBuffer.Memory.Slice(0, readBufferSize));
 
-                                var processOffset = 0;
                                 var process = true;
                                 while (process)
                                 {
-                                    var prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                    var indexContentLengthStart = prcessSlice.FindBytesIndex(_contentLengthBytes);
-                                    if (indexContentLengthStart == -1)
+                                    if(payloadSize - payloadOffset <= 0)
                                     {
                                         process = false;
-                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
-                                    var indexContentLengthEnd = indexContentLengthStart + _contentLengthBytes.Length;
-                                    if (indexContentLengthEnd > prcessSlice.Length)
+                                    var currentIndex = 0;
+                                    var prcessSlice = imageBuffer.Memory.Slice(payloadOffset, payloadSize);
+                                    currentIndex = prcessSlice.FindBytesIndex(_contentLengthBytes);
+                                    if (currentIndex == -1)
                                     {
                                         process = false;
-                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
-                                    prcessSlice = prcessSlice.Slice(indexContentLengthEnd);
-                                    var indexEndLength = prcessSlice.FindBytesIndex(_newLineBytes);
-                                    if (indexEndLength == -1)
+                                    currentIndex += _contentLengthBytes.Length;
+                                    if (currentIndex > prcessSlice.Length)
                                     {
                                         process = false;
-                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
-                                    var charsCount = Encoding.UTF8.GetCharCount(prcessSlice.Span.Slice(0, indexEndLength));
+                                    var endNewLine = prcessSlice.Slice(currentIndex).FindBytesIndex(_newLineBytes);
+                                    if (endNewLine == -1)
+                                    {
+                                        process = false;
+                                        continue;
+                                    }
+
+                                    var charsCount = Encoding.UTF8.GetCharCount(prcessSlice.Span.Slice(currentIndex, endNewLine));
                                     Encoding.UTF8.GetChars(
-                                        prcessSlice.Span.Slice(0, indexEndLength),
+                                        prcessSlice.Span.Slice(currentIndex, endNewLine),
                                         lengthImageBuffer.Memory.Span
                                         );
-                                    prcessSlice = prcessSlice.Slice(indexEndLength);
+
+                                    currentIndex += endNewLine;
+                                    prcessSlice = prcessSlice.Slice(currentIndex);
                                     var imageSize = int.Parse(lengthImageBuffer.Memory.Span.Slice(0, charsCount));
                                     if (imageSize * 2 > imageBufferSize)
                                     {
@@ -135,29 +153,30 @@ namespace ClientMJPEG
                                     if(prcessSlice.Length <= _newLineBytes.Length * 2 + _carriageReturnSize)
                                     {
                                         process = false;
-                                        copyPayloadDataToStart();
                                         continue;
                                     }
                                     else
                                     {
+                                        currentIndex += _newLineBytes.Length * 2 + _carriageReturnSize;
                                         prcessSlice = prcessSlice.Slice(_newLineBytes.Length * 2 + _carriageReturnSize);
                                     }
 
                                     if(prcessSlice.Length < imageSize)
                                     {
                                         process = false;
-                                        copyPayloadDataToStart();
                                         continue;
                                     }
 
                                     if(imageSize == prcessSlice.Length)
                                     {
                                         payloadSize = 0;
+                                        payloadOffset = 0;
                                         process = false;
                                     }
                                     else
                                     {
-                                        processOffset += prcessSlice.Length;
+                                        payloadOffset += imageSize + currentIndex;
+                                        payloadSize -= imageSize + currentIndex;
                                     }
 
                                     prcessSlice = prcessSlice.Slice(0, imageSize);
@@ -171,14 +190,6 @@ namespace ClientMJPEG
                                     {
                                         memory.Dispose();
                                         throw;
-                                    }
-
-                                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                                    void copyPayloadDataToStart()
-                                    {
-                                        prcessSlice = imageBuffer.Memory.Slice(processOffset, payloadSize - processOffset);
-                                        payloadSize -= processOffset;
-                                        prcessSlice.CopyTo(imageBuffer.Memory);
                                     }
                                 }
                             }
