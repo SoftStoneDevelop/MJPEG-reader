@@ -129,9 +129,8 @@ namespace ClientMJPEG
             var request = $"GET {url} HTTP/1.1\r\nHost: {((IPEndPoint)EndPoint).Address}\r\nContent-Length: 0\r\n\r\n";
 
             var data = new byte[Encoding.UTF8.GetMaxByteCount(request.Length)];
-            Encoding.UTF8.GetBytes(request, 0, request.Length, data, 0);
-
-            _stream.Write(data);
+            var realSize = Encoding.UTF8.GetBytes(request, 0, request.Length, data, 0);
+            _stream.Write(data, 0, realSize);
 
             return true;
         }
