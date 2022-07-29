@@ -87,7 +87,7 @@ namespace CameraViewer.ViewModel
                             await Task.Factory.StartNew(() =>
                             {
                                 item.Dispose();
-                            });
+                            }).ConfigureAwait(false);
                             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                             GC.Collect();
                         }
