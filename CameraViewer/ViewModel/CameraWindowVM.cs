@@ -47,19 +47,22 @@ namespace CameraViewer.ViewModel
                         {
                             var imageData = await _imageCreator.ImageByteReader.ReadAsync(_cancellationTokenSource.Token);
                             BitmapFrame source;
-
+                            var pool = ArrayPool<byte>.Shared;
+                            var data = pool.Rent(imageData.Item2);
                             try
                             {
                                 if (_cancellationTokenSource.Token.IsCancellationRequested)
                                     break;
 
-                                var stream = new MemoryStream(imageData.Item1.Memory.Slice(0, imageData.Item2).ToArray());
-                                JpegBitmapDecoder decoder = new JpegBitmapDecoder(stream, BitmapCreateOptions.None, BitmapCacheOption.Default);
+                                imageData.Item1.Memory.CopyTo(data);//TODO fix double copying, memory stream don't support span
+                                var ms = new MemoryStream(data);
+                                JpegBitmapDecoder decoder = new JpegBitmapDecoder(ms, BitmapCreateOptions.None, BitmapCacheOption.Default);
                                 source = decoder.Frames[0];
                             }
                             finally
                             {
                                 imageData.Item1.Dispose();
+                                pool.Return(data);
                             }
 
                             if (_writableBitmap == null)
