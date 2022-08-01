@@ -8,7 +8,7 @@ namespace CameraViewer.Factories
 {
     public interface IWindowCreatorService
     {
-        public Window CreateCameraWindow(IPAddress address, int port);
+        public Window CreateCameraWindow(IPAddress address, int port, string path);
     }
 
     public class WindowCreatorService : IWindowCreatorService
@@ -22,10 +22,10 @@ namespace CameraViewer.Factories
             _imageCreatorFactory = imageCreatorFactory ?? throw new ArgumentNullException(nameof(imageCreatorFactory));
         }
 
-        public Window CreateCameraWindow(IPAddress address, int port)
+        public Window CreateCameraWindow(IPAddress address, int port, string path)
         {
             var window = new CameraWindow();
-            var vm = new CameraWindowVM(_imageCreatorFactory.GetCreator(address, port));
+            var vm = new CameraWindowVM(_imageCreatorFactory.GetCreator(address, port, path));
             window.DataContext = vm;
 
             return window;

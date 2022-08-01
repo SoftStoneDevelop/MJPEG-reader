@@ -28,8 +28,14 @@
             <TextBlock Text="Port"/>
             <TextBox
                 Width="70"
-                Margin="5,0,0,0"
+                Margin="5,0,5,0"
                 Text="{Binding NewCameraPort, ValidatesOnDataErrors=True}"
+                />
+            <TextBlock Text="Path"/>
+            <TextBox
+                Width="150"
+                Margin="5,0,0,0"
+                Text="{Binding NewCameraPath, ValidatesOnDataErrors=True}"
                 />
             <Button
                 Margin="5,0,20,0"

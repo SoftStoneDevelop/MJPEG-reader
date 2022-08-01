@@ -28,12 +28,13 @@ namespace CameraViewer.ViewModel
 
             NewCameraHost = "31.160.161.51";
             NewCameraPort = "8081";
+            NewCameraPath = "/mjpg/video.mjpg";
             Cameras = new ObservableCollection<CameraItemVM>();
 
             AddCameraCommand = new DelegateCommand(
                     () =>
                     {
-                        Cameras.Add(new CameraItemVM(_imageCreatorFactory.GetCreator(_cameraHost, _cameraPort)));
+                        Cameras.Add(new CameraItemVM(_imageCreatorFactory.GetCreator(_cameraHost, _cameraPort, _newCameraPath)));
                     },
                     () => CanAdd
                 )
@@ -44,11 +45,12 @@ namespace CameraViewer.ViewModel
                     {
                         var ipAdress = _cameraHost;
                         var port = _cameraPort;
+                        var path = _newCameraPath;
                         var thread = new Thread(() =>
                         {
                             try
                             {
-                                var window = _windowCreatorService.CreateCameraWindow(ipAdress, port);
+                                var window = _windowCreatorService.CreateCameraWindow(ipAdress, port, path);
 
                                 window.Closing
                                     += (_, _) =>
@@ -153,6 +155,13 @@ namespace CameraViewer.ViewModel
         }
         private string _newCameraPort;
         private int _cameraPort;
+
+        public string NewCameraPath
+        {
+            get => _newCameraPath;
+            set => Set(ref _newCameraPath, value);
+        }
+        private string _newCameraPath;
 
         #region IDataErrorInfo
 
