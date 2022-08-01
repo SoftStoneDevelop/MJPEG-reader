@@ -89,6 +89,11 @@ namespace ClientMJPEG
                                 return;
                             }
 
+                            if(readByte == '"')
+                            {
+                                continue;
+                            }
+
                             if (readByte == '\r')
                             {
                                 break;
