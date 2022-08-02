@@ -82,7 +82,7 @@ namespace ClientMJPEG
                         var boundary = new byte[72];
                         boundary[0] = (byte)'-';
                         boundary[1] = (byte)'-';
-                        var boundarySize = 0;
+                        var boundarySize = 2;
                         while (!_stop)
                         {
                             var readByte = stream.ReadByte();
