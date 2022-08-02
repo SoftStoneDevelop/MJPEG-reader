@@ -175,6 +175,12 @@ namespace ClientMJPEG
                                     continue;
                                 }
 
+                                nextBoundaryIndex -= 2;//-- marker
+                                if(nextBoundaryIndex < 0)
+                                {
+                                    continue;
+                                }
+
                                 prcessSlice = prcessSlice.Slice(startData, nextBoundaryIndex);
 
                                 var memory = MemoryPool<byte>.Shared.Rent(nextBoundaryIndex);
