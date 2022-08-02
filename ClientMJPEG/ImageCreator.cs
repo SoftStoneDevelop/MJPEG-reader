@@ -79,7 +79,9 @@ namespace ClientMJPEG
                             }
                         }
 
-                        var boundary = new byte[70];
+                        var boundary = new byte[72];
+                        boundary[0] = (byte)'-';
+                        boundary[1] = (byte)'-';
                         var boundarySize = 0;
                         while (!_stop)
                         {
@@ -175,9 +177,11 @@ namespace ClientMJPEG
                                     continue;
                                 }
 
-                                nextBoundaryIndex -= 2;//-- marker
-                                if(nextBoundaryIndex < 0)
+                                if (nextBoundaryIndex == 0)
                                 {
+                                    //no image data
+                                    payloadSize -= startData;
+                                    payloadOffset += startData;
                                     continue;
                                 }
 
