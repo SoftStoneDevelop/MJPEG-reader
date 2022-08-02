@@ -79,7 +79,7 @@ namespace ClientMJPEG
                             }
                         }
 
-                        var boundary = new byte[77];
+                        var boundary = new byte[70];
                         var boundarySize = 0;
                         while (!_stop)
                         {
@@ -176,6 +176,7 @@ namespace ClientMJPEG
                                 }
 
                                 prcessSlice = prcessSlice.Slice(startData, nextBoundaryIndex);
+
                                 var memory = MemoryPool<byte>.Shared.Rent(nextBoundaryIndex);
                                 try
                                 {
