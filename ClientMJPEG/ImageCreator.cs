@@ -51,6 +51,11 @@ namespace ClientMJPEG
                         var indxBoundary = 0;
                         while (!_stop && stream.CanRead)
                         {
+                            if(!stream.DataAvailable)
+                            {
+                                continue;
+                            }
+
                             var readByte = stream.ReadByte();
                             if (readByte == -1)
                             {
@@ -85,6 +90,11 @@ namespace ClientMJPEG
                         var boundarySize = 2;
                         while (!_stop)
                         {
+                            if (!stream.DataAvailable)
+                            {
+                                continue;
+                            }
+
                             var readByte = stream.ReadByte();
                             if (readByte == -1)
                             {
