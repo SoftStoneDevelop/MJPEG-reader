@@ -131,6 +131,7 @@ namespace ClientMJPEG
             var data = new byte[Encoding.UTF8.GetMaxByteCount(request.Length)];
             var realSize = Encoding.UTF8.GetBytes(request, 0, request.Length, data, 0);
             _stream.Write(data, 0, realSize);
+            Socket.Blocking = false;
 
             return true;
         }
